@@ -4,8 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Header from "../components/Header/Page";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
-import { X } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Card,
@@ -17,12 +16,11 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
   DialogFooter,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 import EmptyPage from "../components/Empty/page.jsx";
 import RecipeList from "../RecipeList/page";
 
@@ -32,28 +30,44 @@ export default function Recipes() {
   const [searchQuery, setSearchQuery] = useState("");
   const [recipes, setRecipes] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [categories, setCategories] = useState(["All"]);
+  const [categories, setCategories] = useState(["All", "Breakfast", "Lunch", "Dinner", "Dessert"]);
   const [showDialog, setShowDialog] = useState(false);
   const [newCategory, setNewCategory] = useState("");
+  const defaultCategories = ["Breakfast", "Lunch", "Dinner", "Dessert"];
 
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("recipes");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          setRecipes(parsed);
-        }
+useEffect(() => {
+  try {
+    // Load recipes
+    const savedRecipes = localStorage.getItem("recipes");
+    if (savedRecipes) {
+      const parsedRecipes = JSON.parse(savedRecipes);
+      if (Array.isArray(parsedRecipes)) {
+        setRecipes(parsedRecipes);
       }
-    } catch (error) {
-      console.error("Failed to load recipes:", error);
-    } finally {
-      setIsLoading(false);
     }
-  }, []);
 
-  if (isLoading) return <div>Loading...</div>;
-  console.log("Recipes state updated. Current count:", recipes.length);
+    // Load or initialize categories
+    const savedCategories = localStorage.getItem("categories");
+    if (savedCategories) {
+      const parsedCategories = JSON.parse(savedCategories);
+      if (Array.isArray(parsedCategories)) {
+        setCategories(["All", ...parsedCategories]);
+      }
+    } else {
+      // First time: save default categories to localStorage
+      localStorage.setItem("categories", JSON.stringify(defaultCategories));
+      setCategories(["All", ...defaultCategories]);
+    }
+  } catch (error) {
+    console.error("Failed to load data:", error);
+  } finally {
+    setIsLoading(false);
+  }
+}, []);
+
+
+
+
 
   const handleDeleteRecipe = (recipeId) => {
     const updatedRecipes = recipes.filter((recipe) => recipe.id !== recipeId);
@@ -67,27 +81,39 @@ export default function Recipes() {
       (recipe.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         recipe.content.toLowerCase().includes(searchQuery.toLowerCase()))
   );
-  const handleAddCategory = () => {
-    const newCategory = prompt("Enter new category name:");
-    if (newCategory && !categories.includes(newCategory)) {
-      setCategories([...categories, newCategory]);
-    }
-  };
 
-  const handleDeleteCategory = (cat) => {
-    if (cat === "All") return;
-    const updatedCategories = categories.filter((c) => c !== cat);
-    setCategories(updatedCategories);
-    if (selectedCategory === cat) setSelectedCategory("All");
-  };
+const handleDeleteCategory = (cat) => {
+  if (cat === "All") return;
 
- 
+  const updatedCategories = categories.filter((c) => c !== cat && c !== "All");
+  setCategories(["All", ...updatedCategories]);
+  localStorage.setItem("categories", JSON.stringify(updatedCategories));
+
+  if (selectedCategory === cat) setSelectedCategory("All");
+};
+
+
+
+const handleAddCategory = () => {
+  const trimmed = newCategory.trim();
+  if (trimmed && !categories.includes(trimmed)) {
+    const updatedCategories = [...categories.filter(c => c !== "All"), trimmed];
+    setCategories(["All", ...updatedCategories]);
+    localStorage.setItem("categories", JSON.stringify(updatedCategories));
+    setNewCategory("");
+    setShowDialog(false);
+  }
+};
+
+
+  if (isLoading) return <div>Loading...</div>;
 
   return (
-      <main className="min-h-screen bg-amber-700 text-white flex items-center justify-center">
-        <div>
-          <Header searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
-             <div className="flex flex-wrap justify-center gap-2 mt-4">
+    <main className="min-h-screen bg-amber-700 text-white flex items-center justify-center px-4">
+      <div className="w-full max-w-screen-lg justify-center mx-auto">
+        <Header searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
+
+        <div className="flex flex-wrap justify-center gap-2 mt-4">
           {categories.map((cat) => (
             <Button
               key={cat}
@@ -96,28 +122,30 @@ export default function Recipes() {
                 selectedCategory === cat
                   ? "bg-white text-black"
                   : "bg-black/60 text-white"
-              } px-3 py-1 rounded flex items-center gap-1 hover:bg-black/40 rounded-md curor-pointer`}
+              } px-3 py-1 rounded flex items-center gap-1 hover:bg-black/40 rounded-md cursor-pointer`}
             >
+              {cat}
               {cat !== "All" && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleDeleteCategory(cat)}
-                  className="text-red-300 hover:text-red-500"
+                <span
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteCategory(cat);
+                  }}
+                  className="text-red-300 hover:text-red-500 cursor-pointer"
                 >
                   <X className="w-4 h-4" />
-                </Button>
+                </span>
               )}
-              {cat}
             </Button>
           ))}
+
           <Dialog open={showDialog} onOpenChange={setShowDialog}>
             <DialogTrigger asChild>
               <Button className="bg-black/60 text-white px-3 py-1 rounded-md hover:bg-black/40 cursor-pointer">
-                 <Plus />
+                <Plus />Add Category
               </Button>
             </DialogTrigger>
-            <DialogContent  className="bg-white text-black p-6 rounded-lg shadow-lg">
+            <DialogContent className="bg-white text-black p-6 rounded-lg shadow-lg max-w-sm w-full">
               <DialogHeader>
                 <DialogTitle>Add New Category</DialogTitle>
               </DialogHeader>
@@ -128,14 +156,9 @@ export default function Recipes() {
               />
               <DialogFooter className="mt-4">
                 <Button
-                className="bg-black/60 text-white hover:bg-black/40 cursor-pointer"
-                  onClick={() => {
-                    if (newCategory && !categories.includes(newCategory)) {
-                      setCategories([...categories, newCategory]);
-                      setNewCategory("");
-                      setShowDialog(false);
-                    }
-                  }}
+                  className="bg-black/60 text-white hover:bg-black/40 cursor-pointer"
+                  onClick={handleAddCategory}
+                  disabled={!newCategory.trim()}
                 >
                   Add
                 </Button>
@@ -144,31 +167,31 @@ export default function Recipes() {
           </Dialog>
         </div>
 
-          <Card className="mt-6 w-100">
-            <CardHeader>
-              <CardTitle className="text-lg font-bold">My Recipes</CardTitle>
-            </CardHeader>
-            <CardContent className="text-center overflow-y-auto scrollbar-hide h-[calc(100vh-400px)]">
-              {filteredRecipes.length !== 0 ? (
-                <RecipeList
-                  recipes={filteredRecipes}
-                  setRecipes={setRecipes}
-                  handleDeleteRecipe={handleDeleteRecipe}
-                />
-              ) : (
-                <EmptyPage router={router} />
-              )}
-            </CardContent>
-            <CardFooter className="flex justify-center mt-6">
-              <Button
-                onClick={() => router.push("/RecipeDetail")}
-                className="border rounded-50 bg-black mt-2 cursor-pointer hover:bg-black/50"
-              >
-                <Plus /> Add Recipe
-              </Button>
-            </CardFooter>
-          </Card>
-        </div>
-      </main>
+        <Card className="mt-4 w-full sm:w-100 md:w-150 mx-auto shadow-lg">
+          <CardHeader>
+            <CardTitle className="text-lg font-bold">My Recipes</CardTitle>
+          </CardHeader>
+          <CardContent className="text-center overflow-y-auto scrollbar-hide max-h-[25vh]">
+            {filteredRecipes.length !== 0 ? (
+              <RecipeList
+                recipes={filteredRecipes}
+                setRecipes={setRecipes}
+                handleDeleteRecipe={handleDeleteRecipe}
+              />
+            ) : (
+              <EmptyPage router={router} />
+            )}
+          </CardContent>
+          <CardFooter className="flex justify-center mt-6">
+            <Button
+              onClick={() => router.push("/RecipeDetail")}
+              className="border rounded-50 bg-black mt-2 cursor-pointer hover:bg-black/50 flex items-center gap-2"
+            >
+              <Plus /> Add Recipe
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    </main>
   );
 }
