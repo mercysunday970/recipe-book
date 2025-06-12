@@ -36,38 +36,31 @@ export default function Recipes() {
   const defaultCategories = ["Breakfast", "Lunch", "Dinner", "Dessert"];
 
 useEffect(() => {
-  try {
-    // Load recipes
-    const savedRecipes = localStorage.getItem("recipes");
-    if (savedRecipes) {
-      const parsedRecipes = JSON.parse(savedRecipes);
-      if (Array.isArray(parsedRecipes)) {
-        setRecipes(parsedRecipes);
-      }
-    }
+  const savedRecipes = localStorage.getItem("recipes");
+  const savedCategories = localStorage.getItem("categories");
 
-    // Load or initialize categories
-    const savedCategories = localStorage.getItem("categories");
-    if (savedCategories) {
-      const parsedCategories = JSON.parse(savedCategories);
-      if (Array.isArray(parsedCategories)) {
-        setCategories(["All", ...parsedCategories]);
-      }
-    } else {
-      // First time: save default categories to localStorage
-      localStorage.setItem("categories", JSON.stringify(defaultCategories));
-      setCategories(["All", ...defaultCategories]);
-    }
-  } catch (error) {
-    console.error("Failed to load data:", error);
-  } finally {
-    setIsLoading(false);
+  if (savedRecipes) {
+    setRecipes(JSON.parse(savedRecipes));
   }
+
+  const defaultCategories = ["All", "Breakfast", "Lunch", "Dinner", "Dessert"];
+  let categoriesToUse = defaultCategories;
+
+  if (savedCategories) {
+    const parsed = JSON.parse(savedCategories);
+
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      // Ensure "All" is present in localStorage (in case it was deleted)
+      if (!parsed.includes("All")) parsed.unshift("All");
+      categoriesToUse = parsed;
+    }
+  }
+
+  // Save categories with "All" back to localStorage
+  localStorage.setItem("categories", JSON.stringify(categoriesToUse));
+  setCategories(categoriesToUse);
+  setIsLoading(false);
 }, []);
-
-
-
-
 
   const handleDeleteRecipe = (recipeId) => {
     const updatedRecipes = recipes.filter((recipe) => recipe.id !== recipeId);
@@ -83,27 +76,24 @@ useEffect(() => {
   );
 
 const handleDeleteCategory = (cat) => {
-  if (cat === "All") return;
-
-  const updatedCategories = categories.filter((c) => c !== cat && c !== "All");
-  setCategories(["All", ...updatedCategories]);
+  if (cat === "All") return; // never allow deletion of "All"
+  const updatedCategories = categories.filter((c) => c !== cat);
+  setCategories(updatedCategories);
   localStorage.setItem("categories", JSON.stringify(updatedCategories));
-
   if (selectedCategory === cat) setSelectedCategory("All");
 };
 
-
-
 const handleAddCategory = () => {
-  const trimmed = newCategory.trim();
-  if (trimmed && !categories.includes(trimmed)) {
-    const updatedCategories = [...categories.filter(c => c !== "All"), trimmed];
-    setCategories(["All", ...updatedCategories]);
-    localStorage.setItem("categories", JSON.stringify(updatedCategories));
+  if (newCategory && !categories.includes(newCategory)) {
+    const updated = [...categories, newCategory];
+    if (!updated.includes("All")) updated.unshift("All"); // just in case
+    setCategories(updated);
+    localStorage.setItem("categories", JSON.stringify(updated));
     setNewCategory("");
     setShowDialog(false);
   }
 };
+
 
 
   if (isLoading) return <div>Loading...</div>;
